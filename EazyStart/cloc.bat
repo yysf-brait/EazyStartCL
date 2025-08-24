@@ -1,0 +1,1 @@
+cloc . --exclude-dir=cmake-build-debug,build,.idea,vendor --exclude-ext=md,bat
