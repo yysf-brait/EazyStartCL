@@ -3,7 +3,7 @@ project(EazyStart C)
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-add_subdirectory(third_party/stc)
+add_subdirectory(third_party/stc-wrapper)
 
 set(EZS_SOURCES
         src/tools/charset.c
