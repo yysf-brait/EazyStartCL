@@ -3,6 +3,8 @@ project(EazyStart C)
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+add_subdirectory(third_party/stc)
+
 set(EZS_SOURCES
         src/tools/charset.c
         src/io/print.c
@@ -10,7 +12,12 @@ set(EZS_SOURCES
         src/tools/random.c
 )
 add_library(EazyStart ${EZS_SOURCES})
-target_link_libraries(EazyStart PRIVATE m)
+target_link_libraries(EazyStart
+        PUBLIC
+        stc
+        PRIVATE
+        m
+)
 if (WIN32)
     target_link_libraries(EazyStart PRIVATE bcrypt)
 endif ()
