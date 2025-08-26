@@ -10,6 +10,7 @@ set(EZS_SOURCES
         src/io/print.c
         src/io/input.c
         src/tools/random.c
+        src/time/clock.c
 )
 add_library(EazyStart ${EZS_SOURCES})
 target_link_libraries(EazyStart

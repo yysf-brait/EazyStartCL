@@ -1,4 +1,5 @@
 #include "EazyStart/tools/random.h"
+#include "EazyStart/time/clock.h"
 #include <assert.h>
 #include <float.h>
 #include <inttypes.h>
@@ -7,10 +8,6 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <Windows.h>
 #include <bcrypt.h>
-#elif defined(__unix__) || defined(__APPLE__)
-#define _POSIX_C_SOURCE 200809L // NOLINT(*-reserved-identifier)
-#include <unistd.h>
-#undef _POSIX_C_SOURCE
 #endif
 #include <time.h>
 
@@ -32,108 +29,78 @@ static bool is_initialized = false;
 
 /*---------------------------EZS_RANDOM的内部函数---------------------------*/
 // 尝试从操作系统的随机数生成器获取种子
+static bool try_seed_from_os_rng(char *src, const size_t src_size) {
 #if defined(_WIN32)
-#ifndef NT_SUCCESS
-#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
-#endif
-#define RANDOM_OS_SOURCE_INFO "BCryptGenRandom"
-static bool try_seed_from_os_rng() {
+    snprintf(src, src_size, "\'BCryptGenRandom\'");
     auto const status = BCryptGenRandom(nullptr, (PUCHAR) & seed, sizeof(seed), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-    if (!NT_SUCCESS(status)) {
-        fprintf(stderr, "[EZS][WARN] "
-                "Due to unsuccessful attempt to call BCryptGenRandom[returned 0x%lx], "
-                "the initial random number state will be degraded.\n", status);
-        return false;
-    }
-    return true;
-}
-#undef NT_SUCCESS
+#ifdef NT_SUCCESS
+    return NT_SUCCESS(status);
 #else
-#define RANDOM_OS_SOURCE_INFO "/dev/urandom"
-
-static bool try_seed_from_os_rng() {
+    return status >= 0;
+#endif
+#elif defined(__unix__) || defined(__APPLE__)
+    snprintf(src, src_size, "\'/dev/urandom\'");
     FILE *f = fopen("/dev/urandom", "rb");
     if (nullptr == f) {
-        fprintf(stderr, "[EZS][WARN] "
-                "Due to unsuccessful attempt to open /dev/urandom, "
-                "the initial random number state will be degraded.\n");
         return false;
     }
-    bool success = true;
-
     if (fread(&seed, sizeof(seed), 1, f) != 1) {
-        success = false;
-        if (ferror(f)) {
-            fprintf(stderr, "[EZS][WARN] "
-                    "A critical I/O error occurred while reading from /dev/urandom. "
-                    "The initial random number state will be degraded.\n");
-        } else {
-            fprintf(stderr, "[EZS][WARN] "
-                    "Failed to read enough bytes from /dev/urandom. "
-                    "The initial random number state will be degraded.\n");
-        }
+        fclose(f);
+        return false;
     }
     fclose(f);
-    return success;
-}
+    return true;
+#else
+    snprintf(src, src_size, "no OS random source");
+    return false;
 #endif
-
+}
 
 // 尝试从高精度时间获取种子
-static bool try_seed_from_hres_time() {
-    // --- Windows 平台的实现 ---
-#if defined(_WIN32) || defined(_WIN64)
-#define RANDOM_OS_HRES_INFO "\'QueryPerformanceCounter\'"
-    LARGE_INTEGER counter;
-    if (QueryPerformanceCounter(&counter)) {
-        seed = (uint64_t) counter.QuadPart;
-        return true;
-    }
-
-    // --- 类 UNIX/POSIX 平台的实现 ---
-#elif defined(__unix__) || defined(__APPLE__) && defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
-#define RANDOM_OS_HRES_INFO "\'clock_gettime\'"
+static bool try_seed_from_hres_time(char *src, const size_t src_size) {
     struct timespec ts;
-    if (0 == clock_gettime(CLOCK_MONOTONIC, &ts)) {
+    if (ezs_clock_get_performance_counter(&ts, src, src_size)) {
         seed = (uint64_t) ts.tv_sec ^ (uint64_t) ts.tv_nsec << 1;
         return true;
     }
-#else
-#define RANDOM_OS_HRES_INFO "any high-resolution time source"
-#endif
-    fprintf(stderr, "[EZS][WARN] "
-            "Due to the failure of calling "RANDOM_OS_HRES_INFO", "
-            "high-precision time information is not obtained. "
-            "The initial random number state will be degraded.\n");
     return false;
 }
 
 // 尝试从当前时间获取种子
-static bool try_seed_from_time() {
-    const time_t t = time(nullptr);
-    if ((time_t) -1 == t) {
-        fprintf(stderr, "[EZS][WARN] "
-                "Due to the failure of calling \'time\', "
-                "the initial random number state cannot be obtained. ");
-        return false;
+static bool try_seed_from_time(char *src, const size_t src_size) {
+    time_t t = {0};
+    if (ezs_clock_get_time(&t, src, src_size)) {
+        seed = (uint64_t) t;
+        return true;
     }
-    seed = (uint64_t) t;
+    return false;
+}
+
+// 使用固定资源初始化随机数种子
+// 该函数应当确保总是成功
+static bool try_seed_from_fallback(char *src, const size_t src_size) {
+    snprintf(src, src_size, "fallback");
+    seed = 0xdeadbeefdeadbeef;
     return true;
 }
 
 // 初始化随机数种子
 static void init_seed() {
+    bool (*seed_attempts[])(char *, size_t) = {
+        try_seed_from_os_rng,
+        try_seed_from_hres_time,
+        try_seed_from_time,
+        try_seed_from_fallback
+    };
     printf("---------------------------[EZS RANDOM] AUTOMATICALLY INITIALIZING THE SEED---------------------------\n");
-    if (try_seed_from_os_rng()) {
-        printf("[EZS] random seed <- " RANDOM_OS_SOURCE_INFO ".\n");
-    } else if (try_seed_from_hres_time()) {
-        printf("[EZS] random seed <- clock_gettime().\n");
-    } else if (try_seed_from_time()) {
-        printf("[EZS] random seed <- time().\n");
-    } else {
-        // 如果所有方法都失败了，使用一个固定的种子
-        seed = 0xdeadbeefdeadbeef;
-        printf("[EZS] random seed <- fallback.\n");
+    for (size_t i = 0; i < sizeof(seed_attempts) / sizeof(seed_attempts[0]); ++i) {
+        char src[32] = {0};
+        if (seed_attempts[i](src, sizeof(src))) {
+            printf("[EZS RANDOM] random seed <- %s\n", src);
+            break;
+        }
+        printf("[EZS RANDOM] Failed to initialize seed from %s, "
+               "the initial random number state will be degraded.\n", src);
     }
     printf("---------------------------[EZS RANDOM] SEED IS SET TO [0x%016" PRIx64 "]---------------------------\n",
            seed);
@@ -342,8 +309,6 @@ I_EZS_RANDOM_FLOAT_TYPES_LIST(DEFINE_RANDOM_FLOAT_FUNC)
 }
 
 /*---------------------------清理局部宏---------------------------*/
-#undef RANDOM_OS_SOURCE_INFO
-#undef RANDOM_OS_HRES_INFO
 #undef DEFINE_RANDOM_INTEGER_FUNC
 #undef DEFINE_RANDOM_FLOAT_FUNC
 #undef fma_g
