@@ -101,8 +101,37 @@ void ezs_clock_timespec_sub_eq(struct timespec *ts1, const struct timespec ts2) 
     }
 }
 
+struct timespec ezs_clock_timespec_div(const struct timespec ts1, const long divisor) {
+    assert(divisor > 0);
+    struct timespec result = {
+        .tv_sec = ts1.tv_sec / divisor,
+        .tv_nsec = (ts1.tv_sec % divisor * NANOS_PER_SEC + ts1.tv_nsec) / divisor
+    };
+    if (result.tv_nsec >= NANOS_PER_SEC) {
+        result.tv_sec += 1;
+        result.tv_nsec -= NANOS_PER_SEC;
+    }
+    return result;
+}
+
 double ezs_clock_timespec_to_seconds(const struct timespec ts) {
     return (double) ts.tv_sec + (double) ts.tv_nsec / NANOS_PER_SEC;
+}
+
+signed char ezs_clock_timespec_compare(struct timespec ts1, struct timespec ts2) {
+    if (ts1.tv_sec < ts2.tv_sec) {
+        return -1;
+    }
+    if (ts1.tv_sec > ts2.tv_sec) {
+        return 1;
+    }
+    if (ts1.tv_nsec < ts2.tv_nsec) {
+        return -1;
+    }
+    if (ts1.tv_nsec > ts2.tv_nsec) {
+        return 1;
+    }
+    return 0;
 }
 
 /*---------------------------清理局部宏---------------------------*/
