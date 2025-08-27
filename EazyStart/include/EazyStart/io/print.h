@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 /*---------------------------EZS_PRINT的类型列表宏---------------------------*/
+
 /* 基本类型 */
 #define I_EZS_PRINT_TYPES_LIST_BASE(X) \
     /* 字符类型 */ \
@@ -57,6 +58,7 @@
     I_EZS_PRINT_TYPES_LIST_IMAGINARY(X)
 
 /*---------------------------EZS_PRINT的函数声明部分---------------------------*/
+
 // 常规类型的打印函数声明
 #define DECLARE_PRINT_FUNC(TYPE, FUNCTION_SUFFIX, ...) \
     void i_ezs_print_##FUNCTION_SUFFIX(const char *file, const int line, const char *name, const TYPE *ptr); \
@@ -76,6 +78,7 @@ void i_ezs_print_unsupported(const char *file, int line, const char *name, const
 
 
 /*---------------------------EZS_PRINT---------------------------*/
+
 // 根据类型，转发至不同的实现
 #define I_EZS_PRINT_GENERATE_GENERIC_ENTRIES(TYPE, SUFFIX, FORMAT, ...) \
     TYPE: i_ezs_print_##SUFFIX, \
@@ -98,4 +101,5 @@ do { \
 } while (false)
 
 /*---------------------------清理局部宏---------------------------*/
+
 #undef DECLARE_PRINT_FUNC

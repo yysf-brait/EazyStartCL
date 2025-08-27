@@ -71,6 +71,7 @@
  */
 
 /*---------------------------EZS_RANDOM的类型列表宏---------------------------*/
+
 // 整数类型列表宏
 #define I_EZS_RANDOM_INTEGER_TYPES_LIST(X) \
     /* 字符类型 */ \
@@ -97,6 +98,7 @@
     I_EZS_RANDOM_FLOAT_TYPES_LIST(X)
 
 /*---------------------------EZS_RANDOM的函数声明部分---------------------------*/
+
 // 随机数生成函数声明
 #define DECLARE_RANDOM_FUNC(TYPE, SUFFIX) \
 [[nodiscard]] TYPE ezs_random_##SUFFIX(TYPE min, TYPE max); \
@@ -120,5 +122,6 @@ void ezs_random_init_with_seed(uint64_t new_seed);
 [[nodiscard]] uint64_t ezs_random_get_current_seed(void);
 
 /*---------------------------清理局部宏---------------------------*/
+
 #undef RANDOM_TYPES_LIST
 #undef DECLARE_RANDOM_FUNC

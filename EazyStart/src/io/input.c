@@ -52,6 +52,7 @@ static const char *get_first_non_whitespace_char(const char *str) {
 }
 
 /*---------------------------EZS_INPUT的常规类型函数定义部分---------------------------*/
+
 // 常规类型的输入函数模板
 #define DEFINE_INPUT_FUNC(TYPE, SUFFIX, CONV_FUNC, RANGE_CHECK, ...) \
     [[nodiscard]] TYPE ezs_input_##SUFFIX##_with_prompt(const char *prompt) { \
@@ -89,6 +90,7 @@ static const char *get_first_non_whitespace_char(const char *str) {
 I_EZS_INPUT_TYPES_LIST(DEFINE_INPUT_FUNC)
 
 /*---------------------------EZS_INPUT的特殊类型函数定义部分---------------------------*/
+
 [[nodiscard]] char ezs_input_char_with_prompt(const char *prompt) {
     while (true) {
         char buffer[INPUT_BUFFER_SIZE];

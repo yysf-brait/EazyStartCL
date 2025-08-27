@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 /*---------------------------EZS_PRINT的常规类型函数定义部分---------------------------*/
+
 // 非指针类型的打印函数模板
 #define DEFINE_PRINT_FUNC_FOR_TYPE(TYPE, FUNCTION_SUFFIX, FORMAT_SPECIFIER, ...) \
     inline void i_ezs_print_##FUNCTION_SUFFIX(const char *file, const int line, \
@@ -46,6 +47,7 @@
 I_EZS_PRINT_TYPES_LIST(GENERATE_PRINT_FUNCTIONS)
 
 /*---------------------------EZS_PRINT的特殊类型函数定义部分---------------------------*/
+
 // void*类型打印函数
 #define DEFINE_PRINT_FUNC_FOR_VOID_POINTER_IMPL(file, line, name, ptr) \
     if (nullptr == *(ptr)) { \
@@ -75,6 +77,7 @@ inline void i_ezs_print_unsupported(const char *file, const int line,
 }
 
 /*---------------------------清理局部宏---------------------------*/
+
 #undef DEFINE_PRINT_FUNC_FOR_TYPE
 #undef DEFINE_PRINT_FUNC_FOR_POINTER_IMPL
 #undef DEFINE_PRINT_FUNC_FOR_POINTER

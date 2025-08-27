@@ -12,6 +12,7 @@
 #include <time.h>
 
 /*---------------------------EZS_RANDOM的工具性质宏---------------------------*/
+
 // 浮点数fma泛型函数
 #define fma_g(x, y, z) _Generic((x) + (y) + (z), \
     float:       fmaf, \
@@ -20,6 +21,7 @@
 )((x), (y), (z))
 
 /*---------------------------EZS_RANDOM的内部状态---------------------------*/
+
 // 随机数种子
 static uint64_t seed = 0;
 // xoshiro256**状态
@@ -28,6 +30,7 @@ static uint64_t random_state[4];
 static bool is_initialized = false;
 
 /*---------------------------EZS_RANDOM的内部函数---------------------------*/
+
 // 尝试从操作系统的随机数生成器获取种子
 static bool try_seed_from_os_rng(char *src, const size_t src_size) {
 #if defined(_WIN32)
@@ -238,6 +241,7 @@ static uint64_t random_integer_range(const uint64_t range) {
 }
 
 /*---------------------------EZS_RANDOM的初始化函数定义部分---------------------------*/
+
 // 主动初始化随机数生成器
 void ezs_random_init(void) {
     init_seed();
@@ -265,6 +269,7 @@ void ezs_random_init_with_seed(const uint64_t new_seed) {
 }
 
 /*---------------------------EZS_RANDOM的常规类型函数定义部分---------------------------*/
+
 // 整型随机数生成函数模板
 #define DEFINE_RANDOM_INTEGER_FUNC(TYPE, SUFFIX) \
 [[nodiscard]] TYPE ezs_random_##SUFFIX##_inclusive(const TYPE min, const TYPE max) { \
@@ -304,11 +309,13 @@ I_EZS_RANDOM_INTEGER_TYPES_LIST(DEFINE_RANDOM_INTEGER_FUNC)
 I_EZS_RANDOM_FLOAT_TYPES_LIST(DEFINE_RANDOM_FLOAT_FUNC)
 
 /*---------------------------EZS_RANDOM的特殊类型函数定义部分---------------------------*/
+
 [[nodiscard]] bool ezs_random_bool(void) {
     return 0 != random_next_bits(1);
 }
 
 /*---------------------------清理局部宏---------------------------*/
+
 #undef DEFINE_RANDOM_INTEGER_FUNC
 #undef DEFINE_RANDOM_FLOAT_FUNC
 #undef fma_g

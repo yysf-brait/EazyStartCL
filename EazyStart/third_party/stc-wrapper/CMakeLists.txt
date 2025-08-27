@@ -22,3 +22,12 @@ target_include_directories(stc PUBLIC
 )
 
 target_link_libraries(stc PRIVATE m)
+
+if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(stc PRIVATE
+            -Wno-missing-field-initializers
+            -Wno-double-promotion
+            -Wno-stringop-overflow
+            -Wno-clobbered
+    )
+endif ()

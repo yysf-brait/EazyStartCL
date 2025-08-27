@@ -10,6 +10,7 @@
  */
 
 /*---------------------------EZS_INPUT的类型列表宏---------------------------*/
+
 #define I_EZS_INPUT_TYPES_LIST(X) \
     X(signed char, signed_char, strtol, (result < SCHAR_MIN || result > SCHAR_MAX), 10) \
     X(unsigned char, unsigned_char, strtoul, (result > UCHAR_MAX), 10) \
@@ -26,6 +27,7 @@
     X(long double, long_double, strtold, (false))
 
 /*---------------------------EZS_PRINT的函数声明部分---------------------------*/
+
 // 常规类型的输入函数声明
 #define DECLARE_INPUT_FUNC(TYPE, SUFFIX, ...) \
     [[nodiscard]] TYPE ezs_input_##SUFFIX##_with_prompt(const char *prompt); \
@@ -49,4 +51,5 @@ I_EZS_INPUT_TYPES_LIST(DECLARE_INPUT_FUNC)
 [[nodiscard]] bool ezs_input_bool(void);
 
 /*---------------------------清理局部宏---------------------------*/
+
 #undef DECLARE_INPUT_FUNC
