@@ -2,7 +2,6 @@
 #include "EazyStart/time/clock.h"
 #include <inttypes.h>
 #include <stc/cstr.h>
-#define NANOS_PER_SEC 1000000000L
 
 typedef struct {
     bool idle;
@@ -33,7 +32,7 @@ void ezs_benchmark_start(const char *name) {
     if (res.inserted) {
         entry->idle = true;
         entry->minDuration.tv_sec = INT64_MAX;
-        entry->minDuration.tv_nsec = NANOS_PER_SEC - 1;
+        entry->minDuration.tv_nsec = 1000000000L - 1;
     }
 
     // 状态检查
