@@ -118,7 +118,7 @@ double ezs_clock_timespec_to_seconds(const struct timespec ts) {
     return (double) ts.tv_sec + (double) ts.tv_nsec / NANOS_PER_SEC;
 }
 
-signed char ezs_clock_timespec_compare(struct timespec ts1, struct timespec ts2) {
+signed char ezs_clock_timespec_compare(const struct timespec ts1, const struct timespec ts2) {
     if (ts1.tv_sec < ts2.tv_sec) {
         return -1;
     }
@@ -132,6 +132,43 @@ signed char ezs_clock_timespec_compare(struct timespec ts1, struct timespec ts2)
         return 1;
     }
     return 0;
+}
+
+void ezs_clock_timespec_to_suited_units(const struct timespec ts,
+                                        unsigned long *days, signed char *hours,
+                                        signed char *minutes, signed char *seconds,
+                                        signed short *milliseconds, signed short *microseconds,
+                                        signed short *nanoseconds) {
+    assert(ts.tv_sec >= 0 && "ts.tv_sec must be non-negative");
+    assert(ts.tv_nsec >= 0 && ts.tv_nsec < NANOS_PER_SEC && "ts.tv_nsec must be in [0, 1_000_000_000)");
+    unsigned long total_seconds = (unsigned long) ts.tv_sec;
+    unsigned long total_nanoseconds = (unsigned long) ts.tv_nsec;
+
+    if (nullptr == days) return;
+    *days = total_seconds / (unsigned long) (24 * 60 * 60);
+    total_seconds %= (unsigned long) (24 * 60 * 60);
+
+    if (nullptr == hours) return;
+    *hours = (signed char) (total_seconds / (unsigned long) (60 * 60));
+    total_seconds %= (unsigned long) (60 * 60);
+
+    if (nullptr == minutes) return;
+    *minutes = (signed char) (total_seconds / (unsigned long) 60);
+    total_seconds %= 60;
+
+    if (nullptr == seconds) return;
+    *seconds = (signed char) total_seconds;
+
+    if (nullptr == milliseconds) return;
+    *milliseconds = (signed short) (total_nanoseconds / (unsigned long) 1000000);
+    total_nanoseconds %= (unsigned long) 1000000;
+
+    if (nullptr == microseconds) return;
+    *microseconds = (signed short) (total_nanoseconds / (unsigned long) 1000);
+    total_nanoseconds %= (unsigned long) 1000;
+
+    if (nullptr == nanoseconds) return;
+    *nanoseconds = (signed short) total_nanoseconds;
 }
 
 /*---------------------------清理局部宏---------------------------*/

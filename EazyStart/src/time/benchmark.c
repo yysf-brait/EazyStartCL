@@ -99,6 +99,8 @@ void ezs_benchmark_end(const char *name) {
         entry->maxDuration = duration;
     }
 
+    // 维护 corrected sum of squares [Welford 方差计算]
+    // 维护 sumDuration [时间总和]
     const double currentDurationInSeconds = ezs_clock_timespec_to_seconds(duration);
     const struct timespec previousMean = ezs_clock_timespec_div(entry->sumDuration, (long) (entry->count - 1));
     const double previousMeanInSeconds = ezs_clock_timespec_to_seconds(previousMean);
