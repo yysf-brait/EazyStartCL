@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <time.h>
 
 /*---------------------------EZS_CLOCK 获取时间函数---------------------------*/
@@ -38,6 +39,7 @@ void ezs_clock_timespec_add_eq(struct timespec *ts1, struct timespec ts2) __attr
 // 参数的合法性由用户保证 即
 // ts1和ts2的tv_sec均 >= 0
 // ts1和ts2的tv_nsec均在[0, 1_000_000_000)范围内
+// 可能会导致返回值.tv_sec为负数
 struct timespec ezs_clock_timespec_sub(struct timespec ts1, struct timespec ts2);
 
 // struct timespec operator-=
@@ -46,6 +48,7 @@ struct timespec ezs_clock_timespec_sub(struct timespec ts1, struct timespec ts2)
 // 参数的合法性由用户保证 即
 // ts1和ts2的tv_sec均 >= 0
 // ts1和ts2的tv_nsec均在[0, 1_000_000_000)范围内
+// 可能会导致ts1.tv_sec为负数
 void ezs_clock_timespec_sub_eq(struct timespec *ts1, struct timespec ts2) __attribute__((nonnull(1)));
 
 // struct timespec operator/
@@ -63,20 +66,34 @@ signed char ezs_clock_timespec_compare(struct timespec ts1, struct timespec ts2)
 // 将timespec转换为秒，返回double类型的秒数
 double ezs_clock_timespec_to_seconds(struct timespec ts);
 
-// 将timespec转换为天、小时、分钟、秒、毫秒、微秒、纳秒的组合
+/*---------------------------EZS_CLOCK 时间格式化函数---------------------------*/
+
+// 将struct timespec视为一个时间整体，**分解**为指定单位组合的表示
+// 注意：出参的值会依赖于其他参数是否为nullptr
+//
+// 例如：
+// 将{.tv_sec = 100, .tv_nsec = 123456789}分解为days, minutes, milliseconds, nanoseconds
+// 得到days = 0, minutes = 1, milliseconds = 40 * 1000 + 123, nanoseconds = 456789
+//
+// 参数的合法性由用户保证 即
+// ts.tv_sec >= 0
+// ts.tv_nsec在[0, 1_000_000_000)范围内
+//
+// 置空的指针表示不关心该单位，该单位的值会下落到更小的单位
+// 非空的指针表示该单位的值包括由更大单位下落的值将会被写入该指针指向的变量
+//
+// 在time_t为64位的系统上，如果ts的时间超过了584年，且秒及更大单位都置空，则会导致溢出
+// 这种极端大的持续时间一般不会出现，因此不任何做特殊处理
+void ezs_clock_timespec_decompose(struct timespec ts,
+                                  uint64_t *restrict days, uint64_t *restrict hours,
+                                  uint64_t *restrict minutes, uint64_t *restrict seconds,
+                                  uint64_t *restrict milliseconds, uint64_t *restrict microseconds,
+                                  uint64_t *restrict nanoseconds);
+
+// 将timespec转换为字符串，格式为 "XdYhZmAsBmsCusDns"
+// 只打印非零的单位
 // 参数的合法性由用户保证 即
 // ts1和ts2的tv_sec均 >= 0
 // ts1和ts2的tv_nsec均在[0, 1_000_000_000)范围内
-// days: 0 <= days <= LONG_MAX
-// hours: 0 <= hours < 24
-// minutes: 0 <= minutes < 60
-// seconds: 0 <= seconds < 60
-// milliseconds: 0 <= milliseconds < 1000
-// microseconds: 0 <= microseconds < 1000
-// nanoseconds: 0 <= nanoseconds < 1000
-// 置空的指针表示不关心该单位，并且比它更小的单位也不关心，即不会写入这些单位的值
-void ezs_clock_timespec_to_suited_units(struct timespec ts,
-                                        unsigned long *days, signed char *hours,
-                                        signed char *minutes, signed char *seconds,
-                                        signed short *milliseconds, signed short *microseconds,
-                                        signed short *nanoseconds);
+// buf不为nullptr且size > 0由用户保证
+bool ezs_clock_timespec_to_string(struct timespec ts, char *buf, size_t size);

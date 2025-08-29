@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <Windows.h>
@@ -134,41 +135,80 @@ signed char ezs_clock_timespec_compare(const struct timespec ts1, const struct t
     return 0;
 }
 
-void ezs_clock_timespec_to_suited_units(const struct timespec ts,
-                                        unsigned long *days, signed char *hours,
-                                        signed char *minutes, signed char *seconds,
-                                        signed short *milliseconds, signed short *microseconds,
-                                        signed short *nanoseconds) {
-    assert(ts.tv_sec >= 0 && "ts.tv_sec must be non-negative");
-    assert(ts.tv_nsec >= 0 && ts.tv_nsec < NANOS_PER_SEC && "ts.tv_nsec must be in [0, 1_000_000_000)");
-    unsigned long total_seconds = (unsigned long) ts.tv_sec;
-    unsigned long total_nanoseconds = (unsigned long) ts.tv_nsec;
+void ezs_clock_timespec_decompose(const struct timespec ts,
+                                  uint64_t *restrict days, uint64_t *restrict hours,
+                                  uint64_t *restrict minutes, uint64_t *restrict seconds,
+                                  uint64_t *restrict milliseconds, uint64_t *restrict microseconds,
+                                  uint64_t *restrict nanoseconds) {
+    constexpr uint64_t SECONDS_PER_MINUTE = 60;
+    constexpr uint64_t SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+    constexpr uint64_t SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 
-    if (nullptr == days) return;
-    *days = total_seconds / (unsigned long) (24 * 60 * 60);
-    total_seconds %= (unsigned long) (24 * 60 * 60);
+    constexpr uint64_t NANOS_PER_MICROSECOND = 1000;
+    constexpr uint64_t NANOS_PER_MILLISECOND = 1000 * NANOS_PER_MICROSECOND;
+    constexpr uint64_t NANOS_PER_SECOND = 1000 * NANOS_PER_MILLISECOND;
 
-    if (nullptr == hours) return;
-    *hours = (signed char) (total_seconds / (unsigned long) (60 * 60));
-    total_seconds %= (unsigned long) (60 * 60);
+    uint64_t remaining_seconds = (uint64_t) ts.tv_sec;
 
-    if (nullptr == minutes) return;
-    *minutes = (signed char) (total_seconds / (unsigned long) 60);
-    total_seconds %= 60;
+    if (nullptr != days) {
+        *days = remaining_seconds / SECONDS_PER_DAY;
+        remaining_seconds %= SECONDS_PER_DAY;
+    }
+    if (nullptr != hours) {
+        *hours = remaining_seconds / SECONDS_PER_HOUR;
+        remaining_seconds %= SECONDS_PER_HOUR;
+    }
+    if (nullptr != minutes) {
+        *minutes = remaining_seconds / SECONDS_PER_MINUTE;
+        remaining_seconds %= SECONDS_PER_MINUTE;
+    }
+    if (nullptr != seconds) {
+        *seconds = remaining_seconds;
+        remaining_seconds = 0;
+    }
+    assert(
+        remaining_seconds <= UINT64_MAX / NANOS_PER_SECOND &&
+        "Potential overflow: duration is too large to be represented in nanoseconds.");
+    uint64_t remaining_nanoseconds = (uint64_t) ts.tv_nsec +
+                                     remaining_seconds * NANOS_PER_SECOND;
 
-    if (nullptr == seconds) return;
-    *seconds = (signed char) total_seconds;
+    if (nullptr != milliseconds) {
+        *milliseconds = remaining_nanoseconds / NANOS_PER_MILLISECOND;
+        remaining_nanoseconds %= NANOS_PER_MILLISECOND;
+    }
+    if (nullptr != microseconds) {
+        *microseconds = remaining_nanoseconds / NANOS_PER_MICROSECOND;
+        remaining_nanoseconds %= NANOS_PER_MICROSECOND;
+    }
+    if (nullptr != nanoseconds) {
+        *nanoseconds = remaining_nanoseconds;
+    }
+}
 
-    if (nullptr == milliseconds) return;
-    *milliseconds = (signed short) (total_nanoseconds / (unsigned long) 1000000);
-    total_nanoseconds %= (unsigned long) 1000000;
-
-    if (nullptr == microseconds) return;
-    *microseconds = (signed short) (total_nanoseconds / (unsigned long) 1000);
-    total_nanoseconds %= (unsigned long) 1000;
-
-    if (nullptr == nanoseconds) return;
-    *nanoseconds = (signed short) total_nanoseconds;
+bool ezs_clock_timespec_to_string(const struct timespec ts, char *buf, const size_t size) {
+    if (nullptr == buf || size <= 1) {
+        return false;
+    }
+    if (ezs_clock_timespec_compare(ts, (struct timespec){0, 0}) <= 0) {
+        const int n = snprintf(buf, size, "0");
+        return n >= 0 && (size_t) n < size;
+    }
+    uint64_t t[7] = {};
+    ezs_clock_timespec_decompose(ts, &t[0], &t[1], &t[2], &t[3], &t[4], &t[5], &t[6]);
+    size_t written = 0;
+    for (size_t i = 0; i < 7; i += 1) {
+        if (0 == t[i]) {
+            continue;
+        }
+        char const *units[] = {"d", "h", "m", "s", "ms", "us", "ns"};
+        const int n = snprintf(buf + written, size - written,
+                               "%"PRIu64"%s", t[i], units[i]);
+        if (n < 0 || (size_t) n >= size - written) {
+            return false;
+        }
+        written += (size_t) n;
+    }
+    return true;
 }
 
 /*---------------------------清理局部宏---------------------------*/
