@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define INPUT_BUFFER_SIZE ((size_t)(1024))
+static constexpr size_t INPUT_BUFFER_SIZE = 1024;
 
 // 清除输入缓冲区，直到遇到换行符或EOF
 static void clear_input_buffer() {

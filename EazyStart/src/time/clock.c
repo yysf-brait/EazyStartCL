@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <limits.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <Windows.h>
@@ -13,7 +14,7 @@
 #endif
 #include <time.h>
 
-#define NANOS_PER_SEC 1000000000L
+static constexpr long NANOS_PER_SEC = 1'000'000'000L;
 
 /*---------------------------EZS_CLOCK 获取时间函数---------------------------*/
 
@@ -26,6 +27,16 @@ bool ezs_clock_get_performance_counter(struct timespec *ts, char *src, const siz
     static LARGE_INTEGER frequency = {0};
     if (0 == frequency.QuadPart) {
         if (!QueryPerformanceFrequency(&frequency)) {
+            fprintf(stderr, "[EZS][ERROR] "
+                    "QueryPerformanceFrequency failed, the frequency of query performance counter is unknown. "
+                    "High-resolution time cannot be obtained.\n");
+            return false;
+        }
+        if (frequency.QuadPart > INT64_MAX / NANOS_PER_SEC + 1) {
+            fprintf(stderr, "[EZS][WARN] "
+                    "The frequency of query performance counter is too high (%" PRId64 " Hz). "
+                    "There is a risk of overflow when converting to nanoseconds. "
+                    "High-resolution time is not reliable.\n", frequency.QuadPart);
             return false;
         }
     }
@@ -33,14 +44,17 @@ bool ezs_clock_get_performance_counter(struct timespec *ts, char *src, const siz
     if (!QueryPerformanceCounter(&counter)) {
         return false;
     }
-
-    ts->tv_sec = counter.QuadPart / frequency.QuadPart;
-    ts->tv_nsec = (long) ((counter.QuadPart % frequency.QuadPart) * NANOS_PER_SEC / frequency.QuadPart);
+    // Explicit cast to time_t or typeof(tv_nsec) is necessary for portability,
+    // as the underlying type of them can vary across platforms.
+    // ReSharper disable once CppRedundantCastExpression
+    ts->tv_sec = (time_t) counter.QuadPart / frequency.QuadPart;
+    // ReSharper disable once CppRedundantCastExpression
+    ts->tv_nsec = (typeof(ts->tv_nsec)) (counter.QuadPart % frequency.QuadPart * NANOS_PER_SEC / frequency.QuadPart);
     return true;
 
-#elif defined(__unix__) || defined(__APPLE__) && defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
+#elif defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
     if (nullptr != src && src_size > 0) {
-        snprintf(src, src_size, "\'clock_gettime(CLOCK_MONOTONIC)\'");
+        snprintf(src, src_size, "\'clock_gettime(MONOTONIC)\'");
     }
     return 0 == clock_gettime(CLOCK_MONOTONIC, ts);
 #else
@@ -102,17 +116,37 @@ void ezs_clock_timespec_sub_eq(struct timespec *ts1, const struct timespec ts2) 
     }
 }
 
-struct timespec ezs_clock_timespec_div(const struct timespec ts1, const long divisor) {
-    assert(divisor > 0);
-    struct timespec result = {
-        .tv_sec = ts1.tv_sec / divisor,
-        .tv_nsec = (ts1.tv_sec % divisor * NANOS_PER_SEC + ts1.tv_nsec) / divisor
+struct timespec ezs_clock_timespec_div(const struct timespec ts, const uint64_t divisor) {
+    assert(divisor != 0 && "Division by zero is not allowed.");
+#if defined(__SIZEOF_INT128__) && (LONG_MAX == 9223372036854775807L)
+    // time_t为64位且编译器支持128位整数: 使用128位整数，避免溢出风险。
+    const __uint128_t total_nanos = (__uint128_t) ts.tv_sec * NANOS_PER_SEC + (__uint128_t) ts.tv_nsec;
+    const __uint128_t result_nanos = total_nanos / divisor;
+    return (struct timespec){
+        // Explicit cast to time_t or typeof(tv_nsec) is necessary for portability,
+        // as the underlying type of them can vary across platforms.
+        // ReSharper disable once CppRedundantCastExpression
+        .tv_sec = (time_t) (result_nanos / NANOS_PER_SEC),
+        // ReSharper disable once CppRedundantCastExpression
+        .tv_nsec = (typeof(ts.tv_nsec)) (result_nanos % NANOS_PER_SEC)
     };
-    if (result.tv_nsec >= NANOS_PER_SEC) {
-        result.tv_sec += 1;
-        result.tv_nsec -= NANOS_PER_SEC;
-    }
-    return result;
+#else
+    // 1. time_t为32位: 此时 unsigned long long 足够大，不会溢出。
+    // 2. time_t为64位 && 编译器不支持128位整数: 存在溢出风险。
+#if LONG_MAX == 9223372036854775807L
+#warning "EZS_CLOCK: On this platform, 'long' is 64-bit but 128-bit integers are not supported. The ezs_clock_timespec_div() function has a potential for integer overflow with very large divisions. "
+#endif
+    const uint64_t second = (uint64_t) ts.tv_sec;
+    const uint64_t nano = (uint64_t) ts.tv_nsec;
+    return (struct timespec){
+        // Explicit cast to time_t or typeof(tv_nsec) is necessary for portability,
+        // as the underlying type of them can vary across platforms.
+        // ReSharper disable once CppRedundantCastExpression
+        .tv_sec = (time_t) (second / divisor),
+        // ReSharper disable once CppRedundantCastExpression
+        .tv_nsec = (typeof(ts.tv_nsec)) ((second % divisor * NANOS_PER_SEC + nano) / divisor)
+    };
+#endif
 }
 
 double ezs_clock_timespec_to_seconds(const struct timespec ts) {
@@ -144,9 +178,9 @@ void ezs_clock_timespec_decompose(const struct timespec ts,
     constexpr uint64_t SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
     constexpr uint64_t SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 
-    constexpr uint64_t NANOS_PER_MICROSECOND = 1000;
-    constexpr uint64_t NANOS_PER_MILLISECOND = 1000 * NANOS_PER_MICROSECOND;
-    constexpr uint64_t NANOS_PER_SECOND = 1000 * NANOS_PER_MILLISECOND;
+    constexpr uint64_t NANOS_PER_MICROSECOND = 1'000;
+    constexpr uint64_t NANOS_PER_MILLISECOND = 1'000 * NANOS_PER_MICROSECOND;
+    constexpr uint64_t NANOS_PER_SECOND = 1'000 * NANOS_PER_MILLISECOND;
 
     uint64_t remaining_seconds = (uint64_t) ts.tv_sec;
 
@@ -195,12 +229,11 @@ bool ezs_clock_timespec_to_string(const struct timespec ts, char *buf, const siz
     }
     uint64_t t[7] = {};
     ezs_clock_timespec_decompose(ts, &t[0], &t[1], &t[2], &t[3], &t[4], &t[5], &t[6]);
-    size_t written = 0;
-    for (size_t i = 0; i < 7; i += 1) {
+    for (size_t i = 0, written = 0; i < 7; i += 1) {
         if (0 == t[i]) {
             continue;
         }
-        char const *units[] = {"d", "h", "m", "s", "ms", "us", "ns"};
+        char const *const units[] = {"d", "h", "m", "s", "ms", "us", "ns"};
         const int n = snprintf(buf + written, size - written,
                                "%"PRIu64"%s", t[i], units[i]);
         if (n < 0 || (size_t) n >= size - written) {
@@ -210,7 +243,3 @@ bool ezs_clock_timespec_to_string(const struct timespec ts, char *buf, const siz
     }
     return true;
 }
-
-/*---------------------------清理局部宏---------------------------*/
-
-#undef NANOS_PER_SEC

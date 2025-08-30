@@ -84,12 +84,12 @@ void i_ezs_print_unsupported(const char *file, int line, const char *name, const
     TYPE: i_ezs_print_##SUFFIX, \
     TYPE*: i_ezs_print_pointer_##SUFFIX, \
     const TYPE*: i_ezs_print_const_pointer_##SUFFIX,
-#define I_EZS_PRINT_GENERATE_GENERIC_BLOCK(file, line, name, ptr) (_Generic((*ptr), \
+#define I_EZS_PRINT_GENERATE_GENERIC_BLOCK(file, line, name, ptr) (_Generic((*(ptr)), \
     I_EZS_PRINT_TYPES_LIST(I_EZS_PRINT_GENERATE_GENERIC_ENTRIES) \
     /* 特例类型处理 */ \
     void*: i_ezs_print_pointer_void, const void*: i_ezs_print_const_pointer_void, \
     default: i_ezs_print_unsupported \
-))(file, line, (name), ptr)
+))(file, line, (name), (ptr))
 
 // 如果你发现在此处编译报错，说明你传入的变量不是左值，或者无法获取其地址。
 // 你可以尝试将其提升为一个变量，而不是直接传入一个表达式。

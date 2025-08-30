@@ -8,7 +8,7 @@
 #define DEFINE_PRINT_FUNC_FOR_TYPE(TYPE, FUNCTION_SUFFIX, FORMAT_SPECIFIER, ...) \
     inline void i_ezs_print_##FUNCTION_SUFFIX(const char *file, const int line, \
                                               const char *name, const TYPE *ptr) { \
-        const TYPE var = *ptr; \
+        const TYPE var = *(ptr); \
         printf("[EZS %s:%d] -> [%s at 0x%p]:"#TYPE"(%zu bytes) = "FORMAT_SPECIFIER"\n", \
             file, line, name, ptr, sizeof(var) __VA_OPT__(, __VA_ARGS__)); \
     }
@@ -17,11 +17,11 @@
 #define DEFINE_PRINT_FUNC_FOR_POINTER_IMPL(file, line, name, ptr, TYPE, FORMAT_SPECIFIER, ...) \
     if (nullptr == *(ptr)) { \
         printf("[EZS %s:%d] -> [%s at 0x%p]:"#TYPE"*(%zu bytes) = nullptr\n", \
-            file, line, name, ptr, sizeof(*ptr)); \
+            file, line, name, ptr, sizeof(*(ptr))); \
     } else { \
-        [[maybe_unused]] const TYPE var = **ptr; \
+        [[maybe_unused]] const TYPE var = **(ptr); \
         printf("[EZS %s:%d] -> [%s at 0x%p]:"#TYPE"*(%zu bytes) = 0x%p -> ["FORMAT_SPECIFIER"]\n", \
-            file, line, name, ptr, sizeof(*ptr), *ptr __VA_OPT__(, __VA_ARGS__)); \
+            file, line, name, ptr, sizeof(*(ptr)), *(ptr) __VA_OPT__(, __VA_ARGS__)); \
     }
 // non-const指针类型打印函数
 #define DEFINE_PRINT_FUNC_FOR_POINTER(TYPE, FUNCTION_SUFFIX, FORMAT_SPECIFIER, ...) \
@@ -52,10 +52,10 @@ I_EZS_PRINT_TYPES_LIST(GENERATE_PRINT_FUNCTIONS)
 #define DEFINE_PRINT_FUNC_FOR_VOID_POINTER_IMPL(file, line, name, ptr) \
     if (nullptr == *(ptr)) { \
         printf("[EZS %s:%d] -> [%s at 0x%p]:void*(%zu bytes) = nullptr\n", \
-            file, line, name, ptr, sizeof(*ptr)); \
+            file, line, name, ptr, sizeof(*(ptr))); \
     } else { \
         printf("[EZS %s:%d] -> [%s at 0x%p]:void*(%zu bytes) = 0x%p\n", \
-            file, line, name, ptr, sizeof(*ptr), *ptr); \
+            file, line, name, ptr, sizeof(*(ptr)), *(ptr)); \
     }
 // non-const void*指针类型打印函数
 inline void i_ezs_print_pointer_void(const char *file, const int line,
