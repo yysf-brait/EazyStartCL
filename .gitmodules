@@ -1,3 +1,4 @@
 [submodule "STC"]
 	path = EazyStart/third_party/STC
 	url = https://github.com/stclib/STC.git
+	branch = main
