@@ -114,9 +114,9 @@ static void init_seed() {
 static uint64_t splitmix64_next(uint64_t *state) {
     *state += 0x9e3779b97f4a7c15;
     uint64_t z = *state;
-    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
-    z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
-    return z ^ (z >> 31);
+    z = (z ^ z >> 30) * 0xbf58476d1ce4e5b9;
+    z = (z ^ z >> 27) * 0x94d049bb133111eb;
+    return z ^ z >> 31;
 }
 
 // 初始化xoshiro256**算法的内部状态
@@ -130,7 +130,7 @@ static void init_state() {
 
 // xoshiro256**算法的左旋转函数
 static uint64_t rotl(const uint64_t x, const int k) {
-    return (x << k) | (x >> (64 - k));
+    return x << k | x >> (64 - k);
 }
 
 // xoshiro256**算法生成下一个随机数

@@ -1,4 +1,4 @@
-#if defined(_WIN32) && defined(__GNUC__)
+#if defined(_WIN32) && (defined(__GNUC__) || defined(__clang__))
 #include <stdio.h>
 #include <Windows.h>
 

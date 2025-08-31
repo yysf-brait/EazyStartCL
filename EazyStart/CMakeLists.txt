@@ -52,6 +52,8 @@ if (EZS_ENABLE_SANITIZERS)
     else ()
         message(STATUS "Sanitizers (ASan, UBSan) are disabled on this platform (e.g., MinGW on Windows).")
     endif ()
+else ()
+    message(STATUS "Sanitizers (ASan, UBSan) are disabled.")
 endif ()
 
 # 为 EazyStart 库添加编译选项

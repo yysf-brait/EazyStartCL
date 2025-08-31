@@ -72,7 +72,7 @@ struct timespec ezs_clock_timespec_div(struct timespec ts, uint64_t divisor);
 signed char ezs_clock_timespec_compare(struct timespec ts1, struct timespec ts2);
 
 // 将timespec转换为秒，返回double类型的秒数
-double ezs_clock_timespec_to_seconds(struct timespec ts);
+long double ezs_clock_timespec_to_seconds(struct timespec ts);
 
 /*---------------------------EZS_CLOCK 时间格式化函数---------------------------*/
 

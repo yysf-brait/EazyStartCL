@@ -19,7 +19,12 @@ static constexpr long NANOS_PER_SEC = 1'000'000'000L;
 /*---------------------------EZS_CLOCK 获取时间函数---------------------------*/
 
 bool ezs_clock_get_performance_counter(struct timespec *ts, char *src, const size_t src_size) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
+    if (nullptr != src && src_size > 0) {
+        snprintf(src, src_size, "\'clock_gettime(MONOTONIC)\'");
+    }
+    return 0 == clock_gettime(CLOCK_MONOTONIC, ts);
+#elif defined(_WIN32) || defined(_WIN64)
     if (nullptr != src && src_size > 0) {
         snprintf(src, src_size, "\'QueryPerformanceCounter\'");
     }
@@ -52,11 +57,6 @@ bool ezs_clock_get_performance_counter(struct timespec *ts, char *src, const siz
     ts->tv_nsec = (typeof(ts->tv_nsec)) (counter.QuadPart % frequency.QuadPart * NANOS_PER_SEC / frequency.QuadPart);
     return true;
 
-#elif defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
-    if (nullptr != src && src_size > 0) {
-        snprintf(src, src_size, "\'clock_gettime(MONOTONIC)\'");
-    }
-    return 0 == clock_gettime(CLOCK_MONOTONIC, ts);
 #else
     if (nullptr != src && src_size > 0) {
         snprintf(src, src_size, "no high-resolution time source");
@@ -149,8 +149,8 @@ struct timespec ezs_clock_timespec_div(const struct timespec ts, const uint64_t 
 #endif
 }
 
-double ezs_clock_timespec_to_seconds(const struct timespec ts) {
-    return (double) ts.tv_sec + (double) ts.tv_nsec / NANOS_PER_SEC;
+long double ezs_clock_timespec_to_seconds(const struct timespec ts) {
+    return (long double) ts.tv_sec + (long double) ts.tv_nsec / NANOS_PER_SEC;
 }
 
 signed char ezs_clock_timespec_compare(const struct timespec ts1, const struct timespec ts2) {
